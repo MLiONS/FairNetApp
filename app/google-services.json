@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "197169474914",
+    "firebase_url": "https://fairnetcrashreporting-f0792.firebaseio.com",
+    "project_id": "fairnetcrashreporting-f0792",
+    "storage_bucket": "fairnetcrashreporting-f0792.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:197169474914:android:379f68af04ab92200ed03b",
+        "android_client_info": {
+          "package_name": "com.iitb.fairnet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "197169474914-rj5bcsdlrdrqiv2l77cd8kbbn4pcebbk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAjgoPkd4_SD34INx_YEkWcegHpseLxVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "197169474914-rj5bcsdlrdrqiv2l77cd8kbbn4pcebbk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

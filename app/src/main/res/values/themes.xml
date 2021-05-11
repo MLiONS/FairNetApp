@@ -1,0 +1,5 @@
+<resources>
+    <style name="LightBlueTheme1" parent="@android:style/Theme.Light">
+        <item name="android:windowBackground">@color/steelBlue</item>
+    </style>
+</resources>
