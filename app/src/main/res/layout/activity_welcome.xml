@@ -18,7 +18,7 @@
         android:layout_below="@+id/logo_id"
         android:layout_centerHorizontal="true"
         android:text="FairNet"
-        android:textSize="30dp"
+        android:textSize="50sp"
         android:textColor="@color/colorPrimary"/>
 
 </RelativeLayout>

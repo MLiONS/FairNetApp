@@ -2,6 +2,11 @@ package com.iitb.fairnet;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +24,7 @@ public class Globals {
         String debug;
         DeviceInfo() {
             carrier_addr = "0.0.0.0";
-            carrier_name = "NA";
+            carrier_name = " NA";
             country = "NA";
             gloc = INVALID_GLOC;
             debug = "DEBUG:";
@@ -67,10 +72,10 @@ public class Globals {
 
     public static  final long MAX_SEG_LEN = 625000;
     public static final String app_id = UUID.randomUUID().toString();
-    //public static final String server = "s3.ieor.iitb.ac.in";
+    public static final String server = "s3.ieor.iitb.ac.in";
     //public static final String server = "10.0.2.2";
     // public static final String server = "34.93.220.209";
-    public static final String server = "192.168.0.13";
+    //public static final String server = "192.168.0.13";
     // public static final String server = "192.168.43.28";
     // public static final String server = "192.168.42.40";
     public static final int port = 8084;
@@ -88,6 +93,7 @@ public class Globals {
     public static final int MAX_SPEED = 50; // Percentage of 10 Mbps; 50% to 5 Mbps
     public static final int MAX_SOCKET_TIMEOUT = 12*1000;
     public static int MAX_OTH_SERV = 2;
+    public static int NETWORK_NONE = 255;
     /* +TD Range detect params */
     public static final int MIN_TH_RANGE = 1;
     public static final int MAX_TIME_RANGE = 2500;
@@ -144,12 +150,32 @@ public class Globals {
                               Globals.mcl_apps_enum test_app,
                               double speed,
                               Globals.mcl_gloc_enum gloc,
-                              Activity cActivity){
-        RunTest rt = new RunTest(app_list, test_app, speed, gloc,cActivity);
+                              Activity cActivity, Handler handler){
+        RunTest rt = new RunTest(app_list, test_app, speed, gloc,cActivity,handler);
         rt.start();
     }
 
     // public static mcl_apps_enum[] app_list = null;
+    public static void mcl_set_socket_error_msg (Handler handler){
+        handler = new Handler(Looper.getMainLooper());
+        Message msg = handler.obtainMessage();
+        Bundle bundle = new Bundle();
+        bundle.putString("Connection Error", "Connection Error");
+        msg.setData(bundle);
+        handler.sendMessage(msg);
+    }
+
+    public static void mcl_print_toast (Handler handler, Context cContext, String msg) {
+        if (null != handler) {
+            handler.post(new Runnable() {
+                public void run() {
+                    Toast.makeText(cContext.getApplicationContext(),
+                            msg,
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
 
     public Globals(){
     }

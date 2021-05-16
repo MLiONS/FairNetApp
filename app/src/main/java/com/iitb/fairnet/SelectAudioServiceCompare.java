@@ -209,7 +209,7 @@ public class SelectAudioServiceCompare extends AppCompatActivity {
     public void mcl_test_status(View view) {
         boolean NotClicked = true;
         NotClicked = mcl_get_final_app_list();
-        if (true == NotClicked){
+        if (NotClicked){
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
             builder.setMessage("Select minimum two services to compare");
             AlertDialog dialog = builder.create();
@@ -218,7 +218,7 @@ public class SelectAudioServiceCompare extends AppCompatActivity {
             Intent intent = new Intent(this, TestStatus.class);
             mcl_put_intent_data_forward(intent);
             startActivity(intent);
-            Globals.mcl_run_test(app_list, test_app, speed, gloc,this);
+            Globals.mcl_run_test(app_list, test_app, speed, gloc,this, null);
         }
     }
 }

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
@@ -64,9 +65,11 @@ public class Downloader {
     long ptime;
     int num_cb;
     long dlen;
-    private Handler handler = new Handler();
+    private Handler handler;// = new Handler(Looper.getMainLooper());
 
-    public Downloader(Globals.mcl_apps_enum capp, String crserver, int crport, RunTest.RunTestInfo runTestInfo) {
+    public Downloader(Globals.mcl_apps_enum capp, String crserver, int crport,
+                      RunTest.RunTestInfo runTestInfo,
+                      Handler chandler) {
         int i = 0;
         this.app = capp;
         this.rserver = crserver;
@@ -91,6 +94,7 @@ public class Downloader {
         dcomp = false;
         /* -3MIN */
         dlen = 0;
+        handler = chandler;
     }
 
     /* +Burst */
@@ -116,6 +120,7 @@ public class Downloader {
             trustStore.load(trustStoreStream, "1234567".toCharArray());
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             trustManagerFactory.init(trustStore);
+            assert ssl_context != null;
             ssl_context.init(null, trustManagerFactory.getTrustManagers(), null);
         } catch (GeneralSecurityException e) {
             Log.e(this.getClass().toString(), "Exception while creating context: ", e);
@@ -246,23 +251,23 @@ public class Downloader {
             } catch (SocketException e) {
                 // mcl_dsplay_socket_error();
                 Log.d("ERROR", "Socket Error");
-                mcl_set_socket_error_msg();
+                Globals.mcl_print_toast(handler, tsContext, "Connection Error");
             } catch (IOException e) {
                 Log.d("ERROR", "IO Error");
-                mcl_set_socket_error_msg();
+                Globals.mcl_print_toast(handler, tsContext, "Connection Error");
             } catch (IllegalArgumentException e) {
                 Log.d("ERROR", "IllegalArgumentException");
-                mcl_set_socket_error_msg();
+                Globals.mcl_print_toast(handler, tsContext, "Connection error");
             } catch (SecurityException e) {
                 Log.d("ERROR", "SecurityException");
-                mcl_set_socket_error_msg();
+                Globals.mcl_print_toast(handler, tsContext, "Connection error");
             } catch (NullPointerException e) {
                 Log.d("ERROR", "NullPointerException");
-                mcl_set_socket_error_msg();
+                Globals.mcl_print_toast(handler, tsContext, "Connection error");
             }
             if (null == sock) {
                 try {
-                    sleep(250);
+                    sleep(1000);
                 } catch (InterruptedException e) {
                     //e.printStackTrace();
                 }
@@ -285,13 +290,7 @@ public class Downloader {
             // Log.d("Status", "Socket o/p = " + this.sock_out);
         } catch (SocketException e) {
             Log.d("ERROR","Socket Error");
-        } catch (IOException e) {
-            Log.d("ERROR","IO Error");
-        } catch (IllegalArgumentException e) {
-            Log.d("ERROR","IO Error");
-        } catch (SecurityException e) {
-            Log.d("ERROR","IO Error");
-        } catch (NullPointerException e) {
+        } catch (IOException | IllegalArgumentException | SecurityException | NullPointerException e) {
             Log.d("ERROR","IO Error");
         }
         // mcl_store_sock_info(this.app);
@@ -325,9 +324,10 @@ public class Downloader {
                 try {
                     /* +BURST */
                     // Log.d("Status", "Req data = " + data);
-                    byte[] bytes = data.getBytes("UTF-8");
+                    byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
                     // Log.d("Status", "Req bytes = " + bytes + " Socket out = "+this.sock_out);
-                    this.sock_out.write(bytes);
+                    if (null != bytes)
+                        this.sock_out.write(bytes);
                     // this.sock_out.writeUTF(data);
                     /* -BURST */
                 } catch (IOException e) {
@@ -363,7 +363,7 @@ public class Downloader {
                     res.sdlen = 0;
                     res.sd = null;
                 } else {
-                    data = new String(buffer, "UTF-8");
+                    data = new String(buffer, StandardCharsets.UTF_8);
                     res.sdlen = dlen;
                     res.sd = data; //.trim().replace("\n","");
                     if (bsize > dlen) {
@@ -381,9 +381,9 @@ public class Downloader {
     private void mcl_send_hget_req(String type){
         String req = null;
         mcl_socket sock_api = new mcl_socket(this.sock_input,this.sock_out);
-        if (type == "INITIAL")
+        if (type.equals("INITIAL"))
             req = this.runTestInfo.mcl_app_ini_hget_req_map[this.app.ordinal()];
-        else if (type == "FINAL")
+        else if (type.equals("FINAL"))
             req = this.runTestInfo.mcl_app_fin_hget_req;
         else
             req = this.runTestInfo.mcl_app_hget_req_map[this.app.ordinal()];
@@ -401,7 +401,8 @@ public class Downloader {
         Matcher matcher = pattern.matcher(data);
         if (matcher.find()) {
             slen = matcher.group(1);
-            len = Long.parseLong(slen);
+            if (null != slen)
+                len = Long.parseLong(slen);
         }
 
         return len;

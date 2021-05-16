@@ -235,7 +235,7 @@ public class SelectVideoService extends AppCompatActivity {
                 Intent intent = new Intent(this, TestStatus.class);
                 mcl_put_intent_data(intent);
                 startActivity(intent);
-                Globals.mcl_run_test(app_list, test_app, speed, gloc,this);
+                //Globals.mcl_run_test(app_list, test_app, speed, gloc,this);
                 finish();
             }
         }

@@ -2,6 +2,7 @@ package com.iitb.fairnet;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
@@ -9,11 +10,14 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -32,7 +36,7 @@ public class TestStatus extends AppCompatActivity {
     private ProgressBar progressBar;
     private int progressStatus = 0;
     private TextView textView;
-    private Handler handler = new Handler();
+    public Handler handler = new Handler(Looper.getMainLooper());
     long ctime = 0;
     long ptime = 0;
     Globals.mcl_apps_enum[] app_list;
@@ -81,11 +85,14 @@ public class TestStatus extends AppCompatActivity {
         for (int i=0;i<lapp;i++)
         {
             Globals.mcl_apps_enum capp = app_list[i];
+            long adata_len;
             if (app_list[i] == Globals.mcl_apps_enum.INVALID_APP)
                 continue;
-            if (null == RunTest.adownloader[capp.ordinal()])
-                continue;
-            long adata_len = RunTest.adownloader[capp.ordinal()].app_data_len;
+            if (null == RunTest.adownloader[capp.ordinal()]) {
+                adata_len = 0;
+            } else {
+                adata_len = RunTest.adownloader[capp.ordinal()].app_data_len;
+            }
             /* +3MIN */
             if (progress == 0 || progress > adata_len)
                 progress = adata_len;
@@ -106,13 +113,16 @@ public class TestStatus extends AppCompatActivity {
         if (null == RunTest.adownloader)
             return;
         for (int i = 0; i < lapp; i++) {
-            if (appl[i].name() != Globals.mcl_apps_enum.INVALID_APP.name()) {
+            if (!appl[i].name().equals(Globals.mcl_apps_enum.INVALID_APP.name())) {
                 if (null != RunTest.adownloader[appl[i].ordinal()]) {
                     if (null != RunTest.adownloader[appl[i].ordinal()].sock) {
                         try {
-                            RunTest.adownloader[appl[i].ordinal()].sock_input.close();
-                            RunTest.adownloader[appl[i].ordinal()].sock_out.close();
-                            RunTest.adownloader[appl[i].ordinal()].sock.close();
+                            if (!RunTest.adownloader[appl[i].ordinal()].sock.isClosed())
+                                RunTest.adownloader[appl[i].ordinal()].sock_input.close();
+                            if (!RunTest.adownloader[appl[i].ordinal()].sock.isClosed())
+                                RunTest.adownloader[appl[i].ordinal()].sock_out.close();
+                            if (!RunTest.adownloader[appl[i].ordinal()].sock.isClosed())
+                                RunTest.adownloader[appl[i].ordinal()].sock.close();
                         } catch (SocketException e) {
                             //Log.d("ERROR", "Socket Error");
                         } catch (IOException e) {
@@ -210,13 +220,28 @@ public class TestStatus extends AppCompatActivity {
         return dcomp;
     }
 
+    public void mcl_display_sock_error_loop () {
+        handler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message message) {
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getApplicationContext(), "Connection Error", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        };
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_test_status);
-        graphView = (DrawGraph) findViewById(surfaceView);
+        mcl_display_sock_error_loop();
         mcl_reset_test_status_data();
         mcl_get_intent_data(getIntent());
+        setContentView(R.layout.activity_test_status);
+        graphView = (DrawGraph) findViewById(surfaceView);
         graphView.mcl_update_graph_data(app_list, test_app, null, null, null);
         graphView.startDrawThread();
         progressBar = (ProgressBar) findViewById(R.id.HprogressBar);
@@ -224,6 +249,7 @@ public class TestStatus extends AppCompatActivity {
         ptime = System.currentTimeMillis();
         final int STATUS_SLEEP = 1000; // in ms
         tsContext = this;
+        Globals.mcl_run_test(app_list, test_app, speed, gloc,this, handler);
         new Thread(new Runnable() {
             public void run() {
                 int oprogress = 0;

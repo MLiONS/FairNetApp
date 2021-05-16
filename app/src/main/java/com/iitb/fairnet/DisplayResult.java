@@ -2,6 +2,7 @@ package com.iitb.fairnet;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.ActionBar;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -45,7 +46,7 @@ public class DisplayResult extends AppCompatActivity {
     TextView trdtextView;
     TextView cmtextView;
     private DrawGraph graphView;
-    private Handler handler = new Handler(Looper.getMainLooper());
+    public Handler handler = new Handler(Looper.getMainLooper());
     private static String report; //= "REPORT:\n";
     private static boolean result_ready = false;
     private static double[] th; //= new double[INVALID_APP.ordinal()];
@@ -133,7 +134,7 @@ public class DisplayResult extends AppCompatActivity {
                     StringBuilder rbuilder = new StringBuilder();
                     /* +new Algo */
                     //String result = " ISP:" + Globals.dev.carrier_name + "\n\n";
-                    rbuilder.append(" ISP:");
+                    rbuilder.append(" ISP: ");
                     rbuilder.append(Globals.dev.carrier_name);
                     rbuilder.append("\n\n");
                     //result += "\n " + "Service : " + test_app + "\n";
@@ -189,6 +190,12 @@ public class DisplayResult extends AppCompatActivity {
             qtd_status = (boolean)intentData.get("TD");
     }
 
+    public void mcl_quit_app(View view) {
+        android.os.Process.killProcess(android.os.Process.myPid());
+        this.finish();
+        System.exit(1);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -220,7 +227,9 @@ public class DisplayResult extends AppCompatActivity {
                     mcl_wait_for_result_generation();
                     mcl_ini_report();
                     // SystemClock.sleep(500);
-                    Runnable mcl_send_report_handler = new mcl_send_report_handler_thread(DisplayResult.report);
+                    Runnable mcl_send_report_handler = new mcl_send_report_handler_thread(
+                            DisplayResult.report,
+                            handler);
                     new Thread(mcl_send_report_handler).start();
                     // mcl_display_trdiff_status();
                     // mcl_display_cont_mod_status();
@@ -278,7 +287,7 @@ public class DisplayResult extends AppCompatActivity {
         int expectedSize = 0;
         for (String item: items)
             expectedSize += item.length();
-        StringBuffer result = new StringBuffer(expectedSize);
+        StringBuilder result = new StringBuilder(expectedSize);
         for (String item: items)
             result.append(item);
         return result.toString();
@@ -315,7 +324,7 @@ public class DisplayResult extends AppCompatActivity {
             while (m.find()) {
                 String s = m.group();
                 String c = s.replaceAll("[^0-9]", "");
-                int l = Integer.valueOf(c);
+                int l = Integer.parseInt(c);
                 res[count] = l;
                 count++;
                 if (Globals.MAX_NUM_BURST < count)
@@ -330,6 +339,8 @@ public class DisplayResult extends AppCompatActivity {
             if (INVALID_APP == capp)
                 return rval;
             if (null == RunTest.adownloader)
+                return rval;
+            if (null == RunTest.adownloader[capp.ordinal()])
                 return rval;
             ArrayList cadata = RunTest.adownloader[capp.ordinal()].adata;
             int nadata = RunTest.adownloader[capp.ordinal()].num_adata;
@@ -740,8 +751,10 @@ public class DisplayResult extends AppCompatActivity {
     }
     public static class mcl_send_report_handler_thread implements  Runnable {
         String report = null;
-        public mcl_send_report_handler_thread (String report){
+        Handler handler = null;
+        public mcl_send_report_handler_thread (String report, Handler chandler){
             this.report = report;
+            this.handler = chandler;
         }
         private static String[] splitToNChar(String text, int size) {
             List<String> parts = new ArrayList<>();
@@ -753,7 +766,11 @@ public class DisplayResult extends AppCompatActivity {
             return parts.toArray(new String[0]);
         }
         private void mcl_send_report_to_server(){
-            Downloader app_downloader = new Downloader(INVALID_APP,Globals.server,Globals.port, null);
+            Downloader app_downloader = new Downloader(INVALID_APP,
+                    Globals.server,
+                    Globals.port,
+                    null,
+                    handler);
             app_downloader.mcl_display_sock_error_loop();
             Socket sock = app_downloader.mcl_get_socket(true);
             DataOutputStream sock_out = null;
@@ -773,9 +790,12 @@ public class DisplayResult extends AppCompatActivity {
                 for (i=0; i< lreport; i++) {
                     sock_api.mcl_send_socket_data(sreport[i]);
                 }
-                sock_input.close();
-                sock_out.close();
-                sock.close();
+                if (!sock.isClosed())
+                    sock_input.close();
+                if (!sock.isClosed())
+                    sock_out.close();
+                if (!sock.isClosed())
+                    sock.close();
             } catch (SocketException e) {
                 Log.d("ERROR","Socket Error");
             } catch (IOException e) {

@@ -11,6 +11,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import static com.iitb.fairnet.Globals.MAX_SPEED;
+import static com.iitb.fairnet.Globals.tsContext;
 
 public class SelectServiceType extends AppCompatActivity {
     public static Context context;
@@ -36,10 +37,11 @@ public class SelectServiceType extends AppCompatActivity {
         setContentView(R.layout.activity_select_service_type);
         setTitle("Select service type");
         this.gloc = Globals.dev.gloc;
-        this.context = getApplicationContext();
+        context = getApplicationContext();
         /* +GLOC */
         mcl_get_intent_data(getIntent());
         Log.d("Value","Location is "+gloc);
+        tsContext = getApplicationContext();
         /* -GLOC */
         /***
         textView = (TextView) findViewById(R.id.sbtext);

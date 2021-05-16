@@ -240,7 +240,7 @@ public class SelectVideoServiceCompare extends AppCompatActivity {
                               Globals.mcl_apps_enum test_app,
                               double speed,
                               Globals.mcl_gloc_enum gloc){
-        RunTest rt = new RunTest(app_list, test_app, 5, gloc,this);
+        RunTest rt = new RunTest(app_list, test_app, 5, gloc,this, null);
         rt.start();
     }
 
@@ -263,7 +263,7 @@ public class SelectVideoServiceCompare extends AppCompatActivity {
             Intent intent = new Intent(this, TestStatus.class);
             mcl_put_intent_data_forward(intent);
             startActivity(intent);
-            Globals.mcl_run_test(app_list, test_app, speed, gloc,this);
+            Globals.mcl_run_test(app_list, test_app, speed, gloc,this, null);
         }
     }
 }

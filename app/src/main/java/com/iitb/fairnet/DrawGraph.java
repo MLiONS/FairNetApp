@@ -154,8 +154,10 @@ public class DrawGraph extends SurfaceView implements SurfaceHolder.Callback, Ru
                 cPaint.setStrokeWidth(2);
                 canvas.drawLine(xMargin, yStop, this.xStop, yStop, cPaint);
             }
-            cPaint.setStrokeWidth(10);
-            cPaint.setTextSize(20);
+            //cPaint.setStrokeWidth(10);
+            //cPaint.setTextSize(20);
+            cPaint.setStrokeWidth(15);
+            cPaint.setTextSize(25);
             cPaint.setColor(Color.BLACK);
             float slen = (float) (appName.length() * 12.5);
             float alen = (float) (slen / 2.0 + 12.5);

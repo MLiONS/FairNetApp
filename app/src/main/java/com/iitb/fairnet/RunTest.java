@@ -11,12 +11,14 @@ import android.net.Network;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.Handler;
 import android.os.Looper;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.BoringLayout;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
@@ -33,6 +35,9 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URL;
 
+import static android.app.DownloadManager.Request.NETWORK_MOBILE;
+import static android.app.DownloadManager.Request.NETWORK_WIFI;
+import static com.iitb.fairnet.Globals.NETWORK_NONE;
 import static com.iitb.fairnet.Globals.server;
 import static com.iitb.fairnet.Globals.tsContext;
 import static com.iitb.fairnet.SelectServiceType.context;
@@ -46,19 +51,22 @@ public class RunTest {
     Globals.mcl_gloc_enum gloc;
     Activity cActivity;
     boolean app_server_info_availalble = false;
+    Handler handler;
 
 
     public RunTest(Globals.mcl_apps_enum[] app_list,
                    Globals.mcl_apps_enum test_app,
                    double speed,
                    Globals.mcl_gloc_enum gloc,
-                   Activity cActivity) {
+                   Activity cActivity,
+                   Handler handler) {
         adownloader = new Downloader[Globals.mcl_apps_enum.INVALID_APP.ordinal()];
         this.app_list = app_list;
         this.test_app = test_app;
         this.speed = speed;
         this.gloc = gloc;
         this.cActivity = cActivity;
+        this.handler = handler;
     }
 
     public static void RunTestInit () {
@@ -288,7 +296,7 @@ public class RunTest {
     }
 
     private String mcl_get_header(Globals.mcl_apps_enum capp) {
-        String rval = null;
+        String rval = "";
         switch (capp) {
             case HOTSTAR:
                 rval = "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3\r\nAccept-Encoding: gzip, deflate, br\r\nAccept-Language: en-US,en;q=0.9\r\nConnection: keep-alive\r\nHost: hses.akamaized.net\r\nUpgrade-Insecure-Requests: 1\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36\r\n\r\n";
@@ -376,6 +384,24 @@ public class RunTest {
         return mWifi.isConnected();
     }
 
+    private int getNetWorkState() {
+        int connType = NETWORK_NONE;
+        ConnectivityManager connMgr = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        Network[] networks = connMgr.getAllNetworks();
+        for (Network network : networks) {
+            NetworkInfo networkInfo = connMgr.getNetworkInfo(network);
+            if (networkInfo.isConnected()) {
+                if (networkInfo.getType() == ConnectivityManager.TYPE_MOBILE) {
+                    connType = NETWORK_MOBILE;
+                } else {
+                    connType = NETWORK_WIFI;
+                    break;
+                }
+            }
+        }
+        return connType;
+    }
+
     private boolean mcl_get_mobilenet_connection_status() {
         ConnectivityManager connMgr =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -431,7 +457,7 @@ public class RunTest {
         while (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
             try {
                 wait(100);
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
         }
     }
@@ -440,7 +466,7 @@ public class RunTest {
     private void mcl_get_mobilenet_carrier_name (){
         SubscriptionInfo subscriptionInfo;
         int activeDataSubId;
-        String cisp = "None";
+        String cisp = " None";
         getRequiredPermissions();
         SubscriptionManager subManager = (SubscriptionManager) context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
         try {
@@ -458,8 +484,6 @@ public class RunTest {
             }
             subscriptionInfo = subManager.getActiveSubscriptionInfo(activeDataSubId);
             cisp = (String) subscriptionInfo.getCarrierName();
-        } catch (NoSuchMethodException e) {
-            cisp += "\n " + e;
         } catch (Exception e) {
             cisp += "\n " + e;
         }
@@ -489,7 +513,8 @@ public class RunTest {
         Downloader app_downloader = new Downloader(Globals.mcl_apps_enum.INVALID_APP,
                 Globals.server,
                 Globals.port,
-                null);
+                null,
+                handler);
         app_downloader.mcl_display_sock_error_loop();
         Socket sock = app_downloader.mcl_get_socket(true);
         DataOutputStream sock_out = null;
@@ -507,9 +532,12 @@ public class RunTest {
                 Log.d("Status","No ISP");
             else
                 Log.d("Status","ISP info recevied: "+ isp_info);
-            sock_input.close();
-            sock_out.close();
-            sock.close();
+            if (!sock.isClosed())
+                sock_input.close();
+            if (!sock.isClosed())
+                sock_out.close();
+            if (!sock.isClosed())
+                sock.close();
         } catch (SocketException e) {
             Log.d("ERROR","Socket Error");
         } catch (IOException e) {
@@ -527,7 +555,7 @@ public class RunTest {
 
     @RequiresApi(api = Build.VERSION_CODES.Q)
     public String checkISP (String ipa) {
-        String res = "NA";
+        String res = "None";
         String[] res_a = null;
         try {
             String iurl = "http://ip-api.com/json/";
@@ -574,14 +602,21 @@ public class RunTest {
     @RequiresApi(api = Build.VERSION_CODES.Q)
     private void mcl_get_carrier_name(){
         //+Operator name
-        boolean wifi = mcl_get_wifi_connection_status();
-        if (false == wifi ) {
-            boolean mobilenet = mcl_get_mobilenet_connection_status();
-            if (mobilenet){
-                mcl_get_mobilenet_carrier_name();
-            }
-        } else {
+        //boolean wifi = mcl_get_wifi_connection_status();
+        int nwstate = getNetWorkState();
+        //if (!wifi) {
+        if (NETWORK_MOBILE == nwstate) {
+            mcl_get_mobilenet_carrier_name();
+            //boolean mobilenet = mcl_get_mobilenet_connection_status();
+            //if (mobilenet){
+            //    mcl_get_mobilenet_carrier_name();
+            //} else {
+            //    Globals.dev.carrier_name = "Mobile ISP not accessible";
+            //}
+        } else if (NETWORK_WIFI == nwstate ) {
             mcl_get_wifi_carrier_name();
+        } else {
+            Globals.dev.carrier_name = "Unknown data connection type";
         }
     }
 
@@ -606,7 +641,7 @@ public class RunTest {
             }
         }
         /* +Web-App-Server */
-        Runnable mcl_appserv_handler = new mcl_app_server_thread(this.runTestInfo);
+        Runnable mcl_appserv_handler = new mcl_app_server_thread(this.runTestInfo,this.handler);
         new Thread(mcl_appserv_handler).start();
 
         new Thread(new Runnable() {
@@ -623,7 +658,7 @@ public class RunTest {
         Globals.mcl_apps_enum[] appl = app_list;
         for (int i = 0; i < appl.length; i++)
         {
-            if (appl[i].name() != Globals.mcl_apps_enum.INVALID_APP.name()) {
+            if (!appl[i].name().equals(Globals.mcl_apps_enum.INVALID_APP.name())) {
                 // Globals.mcl_app_dl_status_bmp = Globals.mcl_app_dl_status_bmp << 1 | 1;
                 Runnable mcl_app_handler = new mcl_app_handler_thread(appl[i], mcl_glovars, this.runTestInfo);
                 new Thread(mcl_app_handler).start();
@@ -642,11 +677,14 @@ public class RunTest {
     public class mcl_app_server_thread implements Runnable {
         Globals.mcl_apps_enum app = null;
         RunTestInfo lrunTestInfo = null;
+        Handler handler;
 
-        public mcl_app_server_thread(RunTestInfo runTestInfo) {
+        public mcl_app_server_thread(RunTestInfo runTestInfo,
+                                     Handler handler) {
             this.lrunTestInfo = runTestInfo;
             this.lrunTestInfo.app_server = Globals.server;
             this.lrunTestInfo.port = Globals.port;
+            this.handler = handler;
         }
 
         private Globals.ServerInfo mcl_receive_app_server_info(Downloader.mcl_socket sock_api){
@@ -664,8 +702,8 @@ public class RunTest {
             if (appserv_status.equals("RUNNING")){
                 server_info = new Globals.ServerInfo();
                 server_info.server = sdata_a[1];
-                server_info.port = Integer.valueOf(sdata_a[2]);
-                server_info.in_port = Integer.valueOf(sdata_a[3]);
+                server_info.port = Integer.parseInt(sdata_a[2]);
+                server_info.in_port = Integer.parseInt(sdata_a[3]);
                 Log.d("Status","New app server info "+ server_info.server);
             }
             return server_info;
@@ -678,40 +716,54 @@ public class RunTest {
 
         private Globals.ServerInfo mcl_get_app_server_info(){
             Globals.ServerInfo server_info = null;
-            Downloader app_downloader = new Downloader(Globals.mcl_apps_enum.INVALID_APP,this.lrunTestInfo.app_server
-                                                      ,this.lrunTestInfo.port, null);
+            Downloader app_downloader = new Downloader(Globals.mcl_apps_enum.INVALID_APP,
+                    this.lrunTestInfo.app_server,
+                    this.lrunTestInfo.port,
+                    null,
+                    handler);
             Log.d("Status","webserver = "+this.lrunTestInfo.app_server + ":" + this.lrunTestInfo.port);
-            app_downloader.mcl_display_sock_error_loop();
-            Socket sock = app_downloader.mcl_get_socket(true);
+            //app_downloader.mcl_display_sock_error_loop();
             DataOutputStream sock_out = null;
             // BufferedReader sock_input = null;
             DataInputStream sock_input = null;
             Downloader.mcl_socket sock_api = null;
-            try {
-                int i = 0;
-                sock_out = new DataOutputStream(sock.getOutputStream());
-                // sock_input = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-                sock_input = new DataInputStream(sock.getInputStream());
-                sock_api = new Downloader.mcl_socket(sock_input, sock_out);
-                mcl_send_client_info(sock_api);
-                server_info = mcl_receive_app_server_info(sock_api);
-                if (null == server_info)
-                    Log.d("Status","No server available");
-                else
-                    Log.d("Status","server info recevied ");
-                sock_input.close();
-                sock_out.close();
-                sock.close();
-            } catch (SocketException e) {
-                Log.d("ERROR","Socket Error");
-            } catch (IOException e) {
-                Log.d("ERROR","IO Error");
-            } catch (IllegalArgumentException e) {
-                Log.d("ERROR","IllegalArgumentException");
-            } catch (SecurityException e) {
-                Log.d("ERROR","SecurityException");
-            } catch (NullPointerException e) {
-                Log.d("ERROR","NullPointerException");
+            String serror = "Connection error";
+            while (null == server_info) {
+                Socket sock = app_downloader.mcl_get_socket(true);
+                try {
+                    int i = 0;
+                    sock_out = new DataOutputStream(sock.getOutputStream());
+                    // sock_input = new BufferedReader(new InputStreamReader(sock.getInputStream()));
+                    sock_input = new DataInputStream(sock.getInputStream());
+                    sock_api = new Downloader.mcl_socket(sock_input, sock_out);
+                    mcl_send_client_info(sock_api);
+                    server_info = mcl_receive_app_server_info(sock_api);
+                    if (null == server_info)
+                        Log.d("Status", "No server available");
+                    else
+                        Log.d("Status", "server info recevied ");
+                    if (!sock.isClosed())
+                        sock_input.close();
+                    if (!sock.isClosed())
+                        sock_out.close();
+                    if (!sock.isClosed())
+                        sock.close();
+                } catch (SocketException e) {
+                    Log.d("ERROR", "Socket Error");
+                    Globals.mcl_print_toast(handler, tsContext, serror);
+                } catch (IOException e) {
+                    Log.d("ERROR", "IO Error");
+                    Globals.mcl_print_toast(handler, tsContext, serror);
+                } catch (IllegalArgumentException e) {
+                    Log.d("ERROR", "IllegalArgumentException");
+                    Globals.mcl_print_toast(handler, tsContext, serror);
+                } catch (SecurityException e) {
+                    Log.d("ERROR", "SecurityException");
+                    Globals.mcl_print_toast(handler, tsContext, serror);
+                } catch (NullPointerException e) {
+                    Log.d("ERROR", "NullPointerException" + e);
+                    Globals.mcl_print_toast(handler, tsContext, serror);
+                }
             }
 
             return server_info;
@@ -719,7 +771,7 @@ public class RunTest {
 
         public void run(){
             Looper.prepare();
-            boolean debug = true;
+            boolean debug = false;
             Globals.ServerInfo server_info = null;
             Log.d("status", "Getting app server info ");
             server_info = mcl_get_app_server_info();
@@ -776,7 +828,8 @@ public class RunTest {
             Downloader app_downloader = new Downloader(app,
                                                        runTestInfo.app_server,
                                                        runTestInfo.port,
-                                                       this.lrunTestInfo);
+                                                       this.lrunTestInfo,
+                                                       handler);
             /* -Web-App-Server */
             adownloader[this.app.ordinal()] = app_downloader;
             long app_data;
